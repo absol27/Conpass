@@ -66,3 +66,6 @@ export type Connection = {
   contextLabel: string;
   card: { userId: string; name: string; linkedin: string; role: string; company: string };
 };
+
+/** Your private note about someone you met. Kept on this device only, never synced. */
+export type PersonNote = { text: string; updatedAt: number };

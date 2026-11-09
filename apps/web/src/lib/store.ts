@@ -2,7 +2,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { nanoid } from "nanoid";
-import type { Attendee, Block, DayPlan, Profile } from "./types";
+import type { Attendee, Block, DayPlan, PersonNote, Profile } from "./types";
 import { conference, getSession, sessions } from "./data";
 import { clashes, fits, sessionSlot, blockSlot } from "./scheduler/feasibility";
 import { ms } from "./time";
@@ -33,6 +33,11 @@ type State = {
   onboarded: boolean;
   /** Demo clock: a fixed "now" (epoch ms) for live mode, or null for the real time. */
   demoNow: number | null;
+  /**
+   * Private notes about people you met, by their userId. Kept in this browser only: `toAttendee`
+   * leaves them out, so they're never synced to Elasticsearch where others could read them.
+   */
+  notes: Record<string, PersonNote>;
 
   updateProfile: (p: Partial<Profile>) => void;
   setInterest: (topic: string, weight: number) => void;
@@ -53,6 +58,8 @@ type State = {
   setDone: (day: number, done: boolean) => void;
   resetDay: (day: number) => void;
   setDemoNow: (t: number | null) => void;
+  /** Save (or, when empty, delete) your note about someone you met. */
+  setNote: (userId: string, text: string) => void;
   resetAll: () => void;
 };
 
@@ -64,6 +71,7 @@ export const useStore = create<State>()(
       plans: {},
       onboarded: false,
       demoNow: null,
+      notes: {},
 
       updateProfile: (p) => set((s) => ({ profile: { ...s.profile, ...p } })),
       setInterest: (topic, weight) =>
@@ -139,7 +147,14 @@ export const useStore = create<State>()(
           return { plans };
         }),
       setDemoNow: (t) => set({ demoNow: t }),
-      resetAll: () => set({ profile: newProfile(), blocks: [], plans: {}, onboarded: false, demoNow: null }),
+      setNote: (userId, text) =>
+        set((s) => {
+          const notes = { ...s.notes };
+          if (text) notes[userId] = { text, updatedAt: Date.now() };
+          else delete notes[userId];
+          return { notes };
+        }),
+      resetAll: () => set({ profile: newProfile(), blocks: [], plans: {}, onboarded: false, demoNow: null, notes: {} }),
     }),
     {
       name: "kubecon-planner",
