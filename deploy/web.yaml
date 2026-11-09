@@ -28,6 +28,44 @@ spec:
             # Real walk times between rooms (GET /map/api/walk-matrix).
             - name: MAPS_URL
               value: "http://maps:8080"
+            # Telemetry to Dash0 (OpenTelemetry). Secret `dash0` is created by hand; optional so the app starts without it.
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: DASH0_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: dash0
+                  key: auth-token
+                  optional: true
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: dash0
+                  key: endpoint
+                  optional: true
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: http/protobuf
+            - name: OTEL_EXPORTER_OTLP_HEADERS
+              value: "Authorization=Bearer $(DASH0_AUTH_TOKEN),Dash0-Dataset=default"
+            - name: OTEL_SERVICE_NAME
+              value: web
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "service.namespace=conpass,k8s.namespace.name=team-conpass,k8s.deployment.name=web,k8s.pod.name=$(POD_NAME)"
+            # Browser monitoring (Dash0 Web SDK), served at runtime by /rum-config.
+            - name: DASH0_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: dash0
+                  key: endpoint
+                  optional: true
+            - name: DASH0_BROWSER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: dash0
+                  key: browser-token
+                  optional: true
             # Secret `elastic` is created by hand in the cluster, never in git.
             - name: ES_URL
               valueFrom:
