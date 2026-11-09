@@ -57,7 +57,7 @@ jobs:
             fi
           fi
           echo "Apps to build:${changed:- none}"
-          echo "apps=$(printf '%s\n' $changed | jq -Rsc 'split("\n") | map(select(length > 0))')" >> "$GITHUB_OUTPUT"
+          echo "apps=$(printf '%s' "$changed" | jq -Rsc 'split(" ") | map(select(length > 0))')" >> "$GITHUB_OUTPUT"
 
   build:
     needs: changes
