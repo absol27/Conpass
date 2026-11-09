@@ -19,7 +19,7 @@ images:
     newTag: 75f4b2f
   - name: web
     newName: ghcr.io/absol27/conpass/web
-    newTag: 75f4b2f
+    newTag: f56a851
   - name: maps
     newName: ghcr.io/absol27/conpass/maps
     newTag: 75f4b2f
