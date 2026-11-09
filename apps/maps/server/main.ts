@@ -37,7 +37,10 @@ const clampSpeed = (v: unknown) => {
 function parseSettings(raw: string | null): RouteSettings {
   let given: Partial<RouteSettings> = {}
   try {
-    if (raw) given = JSON.parse(raw) as Partial<RouteSettings>
+    if (raw) {
+      const p: unknown = JSON.parse(raw)
+      if (p && typeof p === 'object' && !Array.isArray(p)) given = p as Partial<RouteSettings>
+    }
   } catch {
     // Fall back to defaults.
   }
@@ -89,12 +92,17 @@ function serveImage(rel: string, res: ServerResponse) {
 }
 
 createServer((req, res) => {
-  const url = new URL(req.url ?? '/', 'http://localhost')
-  const path = url.pathname
-  if (path === '/healthz' || path === '/readyz') return json(res, 200, { status: 'ok', version: process.env.APP_VERSION ?? 'dev' })
-  if (path === '/map/api/venue') return json(res, 200, venueJson, 'public, max-age=300')
-  if (path === '/map/api/route') return serveRoute(url.searchParams, res)
-  if (path === '/map/api/walk-matrix') return serveMatrix(url.searchParams, res)
-  if (path.startsWith('/map/')) return serveImage(decodeURIComponent(path.slice('/map/'.length)), res)
-  json(res, 404, { error: 'not found' })
+  try {
+    const url = new URL(req.url ?? '/', 'http://localhost')
+    const path = url.pathname
+    if (path === '/healthz' || path === '/readyz') return json(res, 200, { status: 'ok', version: process.env.APP_VERSION ?? 'dev' })
+    if (path === '/map/api/venue') return json(res, 200, venueJson, 'public, max-age=300')
+    if (path === '/map/api/route') return serveRoute(url.searchParams, res)
+    if (path === '/map/api/walk-matrix') return serveMatrix(url.searchParams, res)
+    if (path.startsWith('/map/')) return serveImage(decodeURIComponent(path.slice('/map/'.length)), res)
+    json(res, 404, { error: 'not found' })
+  } catch {
+    if (!res.headersSent) json(res, 400, { error: 'bad request' })
+    else res.destroy()
+  }
 }).listen(PORT, () => console.log(`maps listening on :${PORT}`))

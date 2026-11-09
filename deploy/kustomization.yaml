@@ -14,6 +14,7 @@ resources:
   - service.yaml
   - httproute.yaml
 images:
+  - name: gateway
   - name: web
     newName: ghcr.io/absol27/conpass/web
     newTag: 030c304

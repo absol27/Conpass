@@ -3,28 +3,23 @@ import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { Directions } from "./Directions";
 import { SettingsSheet } from "./SettingsSheet";
+import { loadSettings, saveSettings } from "./settings";
+import { useWalkMatrix } from "@/lib/useWalkMatrix";
 import { DEFAULT_SETTINGS, type Detour, type RouteResult, type RouteSettings, type Venue } from "./types";
 import "./hallway.css";
 
 // Leaflet touches `window` when it loads, so the map only renders in the browser.
 const MapView = dynamic(() => import("./MapView").then((m) => m.MapView), { ssr: false });
 
-const SETTINGS_KEY = "conpass.route-settings";
-
-function loadSettings(): RouteSettings {
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    return raw ? { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<RouteSettings>) } : DEFAULT_SETTINGS;
-  } catch {
-    return DEFAULT_SETTINGS;
-  }
-}
-
 let venueRequest: Promise<Venue | null> | null = null;
 const loadVenue = () =>
   (venueRequest ??= fetch("/map/api/venue")
     .then((r) => (r.ok ? (r.json() as Promise<Venue>) : null))
-    .catch(() => null));
+    .catch(() => null)
+    .then((v) => {
+      if (!v) venueRequest = null;
+      return v;
+    }));
 
 /**
  * Hallway wayfinding between two rooms (apps/web room ids): the floor-plan map with the route drawn on it,
@@ -34,15 +29,33 @@ const loadVenue = () =>
 export function HallwayRoute({ from, to }: { from: string; to: string }) {
   const [venue, setVenue] = useState<Venue | null>(null);
   const [settings, setSettings] = useState<RouteSettings>(DEFAULT_SETTINGS);
+  useWalkMatrix(settings);
   const [found, setFound] = useState<{ result: RouteResult; restroom: Detour | null } | null>(null);
   const [failed, setFailed] = useState(false);
+  const [venueFailed, setVenueFailed] = useState(false);
+  const [venueRetry, setVenueRetry] = useState(0);
   const [showPois, setShowPois] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     setSettings(loadSettings());
-    loadVenue().then((v) => (v ? setVenue(v) : setFailed(true)));
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    loadVenue().then((v) => {
+      if (!active) return;
+      if (v) {
+        setVenue(v);
+        setVenueFailed(false);
+      } else {
+        setVenueFailed(true);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [venueRetry]);
 
   useEffect(() => {
     const q = new URLSearchParams({ from, to, settings: JSON.stringify(settings) });
@@ -61,13 +74,25 @@ export function HallwayRoute({ from, to }: { from: string; to: string }) {
 
   const changeSettings = (s: RouteSettings) => {
     setSettings(s);
-    try {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
-    } catch {
-      // Private mode: settings last for this visit only.
-    }
+    saveSettings(s);
   };
 
+  if (venueFailed && !venue) {
+    return (
+      <p className="mt-2 text-sm text-[var(--muted)]">
+        The venue map isn&apos;t available right now.{" "}
+        <button
+          className="underline"
+          onClick={() => {
+            setVenueFailed(false);
+            setVenueRetry((n) => n + 1);
+          }}
+        >
+          Try again
+        </button>
+      </p>
+    );
+  }
   if (failed && !found) return <p className="mt-2 text-sm text-[var(--muted)]">The venue map isn&apos;t available right now.</p>;
 
   const route = found?.result.kind === "ok" ? found.result.route : null;

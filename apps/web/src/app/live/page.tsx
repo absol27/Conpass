@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { conference, getSession, roomById } from "@/lib/data";
 import { useStore } from "@/lib/store";
@@ -7,6 +7,8 @@ import { api, useHydrated, useNow } from "@/lib/client";
 import { at, dayOf, fmtDayTime, fmtTime, MIN, minutesBetween, ms } from "@/lib/time";
 import { directions, ENTRANCE } from "@/lib/venue";
 import { useWalkMatrix } from "@/lib/useWalkMatrix";
+import { loadSettings } from "@/components/hallway/settings";
+import { DEFAULT_SETTINGS } from "@/components/hallway/types";
 import type { GapSuggestion } from "@/lib/scheduler/gapfill";
 import type { Session } from "@/lib/types";
 import { Button, Card, SessionMeta, topicColor } from "@/components/ui";
@@ -17,7 +19,9 @@ type GapResult = { window: { start: number; end: number }; suggestions: GapSugge
 
 /** Day-of mode: where you should be, how to get there, and re-planning when things go wrong. */
 export default function Live() {
-  useWalkMatrix();
+  const [routeSettings, setRouteSettings] = useState(DEFAULT_SETTINGS);
+  useEffect(() => setRouteSettings(loadSettings()), []);
+  useWalkMatrix(routeSettings);
   const hydrated = useHydrated();
   const now = useNow();
   const plans = useStore((s) => s.plans);
