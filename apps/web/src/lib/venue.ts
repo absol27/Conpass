@@ -8,10 +8,37 @@ export const ANYWHERE = "anywhere";
 const zoneOf = (roomId: string) => (roomId === ENTRANCE ? venue.entrance : roomById.get(roomId)?.zone);
 const floorOf = (roomId: string) => roomById.get(roomId)?.floor ?? 1;
 
-/** Walking minutes between two rooms: zone matrix + floor changes + buffer. Offsite blocks get a flat travel time. */
+/** Real walking seconds between rooms from the maps service (GET /map/api/walk-matrix), keyed by room id. */
+export type WalkMatrix = { seconds: Record<string, Record<string, number>> };
+
+let walkSeconds: WalkMatrix["seconds"] | null = null;
+let walkVersion = 0;
+const walkListeners = new Set<() => void>();
+
+/** Use real walk times from now on (null goes back to the estimates). Notifies subscribers so the UI re-renders. */
+export function setWalkMatrix(m: WalkMatrix | null) {
+  walkSeconds = m?.seconds ?? null;
+  walkVersion++;
+  walkListeners.forEach((l) => l());
+}
+export const walkMatrixVersion = () => walkVersion;
+export const hasWalkMatrix = () => walkSeconds !== null;
+export function subscribeWalkMatrix(listener: () => void) {
+  walkListeners.add(listener);
+  return () => {
+    walkListeners.delete(listener);
+  };
+}
+
+/**
+ * Walking minutes between two rooms. Uses the maps service's real walk times when they're loaded,
+ * otherwise the zone matrix + floor changes. Both add the door-to-seat buffer. Offsite blocks get a flat travel time.
+ */
 export function travelMinutes(from: string, to: string): number {
   if (from === to || from === ANYWHERE || to === ANYWHERE) return 0;
   if (from === OFFSITE || to === OFFSITE) return venue.offsiteMinutes;
+  const real = walkSeconds?.[from]?.[to];
+  if (real !== undefined) return Math.ceil(real / 60) + venue.bufferMinutes;
   const za = zoneOf(from);
   const zb = zoneOf(to);
   if (!za || !zb) return venue.offsiteMinutes;

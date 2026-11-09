@@ -25,6 +25,9 @@ spec:
           env:
             - name: TEAM_NAME
               value: "conpass"
+            # Real walk times between rooms (GET /map/api/walk-matrix).
+            - name: MAPS_URL
+              value: "http://maps:8080"
             # Secret `elastic` is created by hand in the cluster, never in git.
             - name: ES_URL
               valueFrom:
