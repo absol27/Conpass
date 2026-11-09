@@ -106,10 +106,23 @@ describe("backtracking (the 9:00 / 9:30 / 9:45 / 9:20 story)", () => {
     const later = talk("L", "09:40", "10:00"); // would clash with X (protected)
     const out = rankCandidates(
       [Y, F, later].map((s) => ({ session: s, score: 1, matched: [] })),
-      { slots, window, protectedIds: new Set(["X", "T3"]), mode: "gap" },
+      { slots, window, protectedIds: new Set(["X", "T3"]) },
     );
     expect(out.recommended.map((s) => s.sessionId)).toEqual(["F"]);
     expect(out.swaps.map((s) => [s.sessionId, s.replaces])).toEqual([["Y", ["T1"]]]);
+  });
+
+  it("going forward, the small 'go back' boxes are talks starting during your last pick, replacing only it", () => {
+    const slots = ["T1", "T2"].map((id) => sessionSlot(byId(id)));
+    const window = { start: at(1, "10:30"), end: at(1, "12:00") };
+    const next = talk("N", "10:35", "11:00");
+    const both = talk("B", "09:20", "09:50"); // starts during T1, would knock out T1 and T2: not offered
+    const cands = [X, both, next].map((s) => ({ session: s, score: 1, matched: [] }));
+    const out = rankCandidates(cands, { slots, window });
+    expect(out.recommended.map((s) => s.sessionId)).toEqual(["N"]);
+    expect(out.swaps.map((s) => [s.sessionId, s.replaces])).toEqual([["X", ["T2"]]]);
+    // a starred must-see is never swapped out
+    expect(rankCandidates(cands, { slots, window, protectedIds: new Set(["T2"]) }).swaps).toEqual([]);
   });
 
   it("offers a repeat of a swapped-out talk when it fits", () => {

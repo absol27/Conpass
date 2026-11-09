@@ -5,7 +5,7 @@ import { roomById, topicById } from "@/lib/data";
 import { fmtTime } from "@/lib/time";
 
 export const topicColor = (s: Pick<Session, "topics" | "kind">) =>
-  s.kind === "keynote" ? "#326ce5" : s.kind === "activity" ? "#0f766e" : topicById.get(s.topics[0])?.color ?? "#64748b";
+  s.kind === "keynote" ? "#113e82" : s.kind === "activity" ? "#137f8c" : topicById.get(s.topics[0])?.color ?? "#6a7b9a";
 
 export function TopicChip({ id }: { id: string }) {
   const t = topicById.get(id);
@@ -37,7 +37,7 @@ export function SessionMeta({ s }: { s: Session }) {
 }
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-2xl border border-[var(--line)] bg-[var(--card)] p-4 shadow-sm ${className}`}>{children}</div>;
+  return <div className={`glass rounded-2xl p-4 ${className}`}>{children}</div>;
 }
 
 export function Button({
@@ -71,7 +71,7 @@ export function Button({
 export function Modal({ children, onClose }: { children: ReactNode; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4" onClick={onClose}>
-      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-white p-5 shadow-xl sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+      <div className="glass max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-white/80 p-5 shadow-xl sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         {children}
       </div>
     </div>

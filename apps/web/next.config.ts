@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   output: "standalone",
   serverExternalPackages: ["node-ical", "@elastic/elasticsearch"],
   outputFileTracingRoot: process.cwd(),
+  // Hide the Next.js "N" dev badge (bottom-left) so the demo looks clean.
+  devIndicators: false,
 };
 
 export default nextConfig;

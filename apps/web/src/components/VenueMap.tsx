@@ -10,14 +10,14 @@ export function VenueMap({ route, here, there }: { route: string[]; here?: strin
       {venue.paths.map((p) => {
         const a = pt(p.a), b = pt(p.b);
         const hot = onRoute(p.a, p.b);
-        return <line key={`${p.a}-${p.b}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={hot ? "#326ce5" : "#cbd5e1"} strokeWidth={hot ? 2.2 : 1.2} strokeDasharray={hot ? "3 2" : undefined} />;
+        return <line key={`${p.a}-${p.b}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={hot ? "#d62293" : "#c3cee0"} strokeWidth={hot ? 2.2 : 1.2} strokeDasharray={hot ? "3 2" : undefined} />;
       })}
       {venue.zones.map((z) => {
         const isHere = z.id === here, isThere = z.id === there;
         return (
           <g key={z.id}>
-            <rect x={z.x - 13} y={z.y - 6} width={26} height={12} rx={3} fill={isThere ? "#326ce5" : isHere ? "#0f766e" : "white"} stroke="#94a3b8" strokeWidth={0.4} />
-            <text x={z.x} y={z.y + 1.5} textAnchor="middle" fontSize={3.6} fill={isThere || isHere ? "white" : "#334155"}>
+            <rect x={z.x - 13} y={z.y - 6} width={26} height={12} rx={3} fill={isThere ? "#113e82" : isHere ? "#137f8c" : "white"} stroke="#94a3be" strokeWidth={0.4} />
+            <text x={z.x} y={z.y + 1.5} textAnchor="middle" fontSize={3.6} fill={isThere || isHere ? "white" : "#0b2a5c"}>
               {z.label.replace(" (A-E)", "")}
             </text>
           </g>

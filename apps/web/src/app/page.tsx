@@ -1,65 +1,55 @@
 "use client";
 import Link from "next/link";
 import { conference } from "@/lib/data";
-import { useStore } from "@/lib/store";
-import { useHydrated } from "@/lib/client";
+import { Tag } from "@/components/Tag";
 
-/** Screen 1: what the conference is about and its main topic areas. */
-export default function Home() {
-  const hydrated = useHydrated();
-  const onboarded = useStore((s) => s.onboarded);
+/** Other conferences on the welcome screen. Only KubeCon has a real schedule in this demo. */
+const COMING_SOON = [
+  { name: "KubeCon + CloudNativeCon Europe 2027", topic: "Cloud native" },
+  { name: "ElasticON", topic: "Search & observability" },
+];
 
+const soonCard = (c: (typeof COMING_SOON)[number]) => (
+  <div key={c.name} aria-disabled className="glass cursor-not-allowed rounded-2xl p-5 text-left opacity-70">
+    <span className="inline-block rounded-full bg-[var(--lead)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--ink)]">
+      Coming soon
+    </span>
+    <div className="mt-2 text-xs font-semibold uppercase tracking-widest text-[var(--muted)]">{c.topic}</div>
+    <div className="mt-1 font-bold leading-snug tracking-[-0.02em] text-[var(--brand)]">{c.name}</div>
+  </div>
+);
+
+/** Welcome to Conpass: pick the conference you're attending. */
+export default function Welcome() {
   return (
-    <div className="space-y-10">
-      <section className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#1e3a8a] via-[#326ce5] to-[#7c3aed] p-8 text-white sm:p-12">
-        <p className="text-sm uppercase tracking-widest text-white/70">
-          {conference.city} · {conference.days[0].label} – {conference.days.at(-1)!.label}
-        </p>
-        <h1 className="mt-3 max-w-3xl text-3xl font-bold leading-tight sm:text-5xl">{conference.name}</h1>
-        <p className="mt-4 max-w-2xl text-white/85">{conference.tagline}</p>
-        <p className="mt-2 max-w-2xl text-sm text-white/70">{conference.about}</p>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link href="/onboarding" className="rounded-xl bg-white px-5 py-3 font-semibold text-[#1e3a8a] hover:bg-white/90">
-            {hydrated && onboarded ? "Edit my interests" : "Plan my KubeCon →"}
-          </Link>
-          {hydrated && onboarded && (
-            <Link href="/plan/1" className="rounded-xl border border-white/40 px-5 py-3 font-semibold hover:bg-white/10">
-              Continue my schedule
-            </Link>
-          )}
-        </div>
-      </section>
+    <div className="flex min-h-[calc(100vh-6rem)] flex-col items-center justify-center py-12 text-center">
+      <Tag pose="welcome" size={170} />
+      <h1 className="mt-6 text-4xl tracking-[-0.05em] sm:text-5xl">
+        Welcome to C<span className="text-[var(--accent)]">o</span>npass
+      </h1>
+      <p className="mt-2 text-lg font-medium text-[var(--muted)]">Conferences made simple.</p>
 
-      <section>
-        <h2 className="text-xl font-semibold">What's on</h2>
-        <p className="mt-1 text-sm text-[var(--muted)]">Ten tracks across three days, plus the expo, project pavilion and lots of hallway track.</p>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {conference.topics.map((t) => (
-            <div key={t.id} className="rounded-2xl border border-[var(--line)] bg-white p-4">
-              <div className="flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full" style={{ background: t.color }} />
-                <h3 className="font-semibold">{t.label}</h3>
-              </div>
-              <p className="mt-2 text-sm text-[var(--muted)]">{t.blurb}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+      <div className="mt-10 grid w-full max-w-4xl items-center gap-4 sm:grid-cols-3">
+        {soonCard(COMING_SOON[0])}
 
-      <section className="grid gap-3 sm:grid-cols-4">
-        {[
-          ["🧭", "Talks that fit", "Suggestions account for walking time between rooms."],
-          ["🔁", "See every option", "Even clashing talks: swap one in and backtrack only as far as you choose."],
-          ["⚡", "Live re-plans", "Missed a talk or room full? Get options that fit the gap."],
-          ["🤝", "Hallway track", "Scan someone to find shared talks, meetups and themed lunches."],
-        ].map(([icon, title, text]) => (
-          <div key={title} className="rounded-2xl bg-white p-4 text-sm">
-            <div className="text-2xl">{icon}</div>
-            <div className="mt-2 font-semibold">{title}</div>
-            <div className="text-[var(--muted)]">{text}</div>
+        <Link
+          href="/kubecon"
+          className="group order-first flex flex-col items-start rounded-2xl bg-gradient-to-br from-[#0b2a5c] via-[#113e82] to-[#1d4f9c] p-6 text-left text-white shadow-lg ring-4 ring-[var(--lead)] transition hover:-translate-y-1 hover:shadow-xl sm:order-none sm:scale-105"
+        >
+          <span className="rounded-full bg-[var(--support)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--ink)]">
+            Live schedule
+          </span>
+          <div className="mt-2 text-xs font-semibold uppercase tracking-widest text-[var(--lead)]">
+            {conference.city.split(",")[0]} · {conference.days[0].label} – {conference.days.at(-1)!.label}
           </div>
-        ))}
-      </section>
+          <div className="mt-1 text-xl font-extrabold leading-tight tracking-[-0.03em]">{conference.name}</div>
+          <span className="mt-5 inline-flex rounded-xl bg-[var(--lead)] px-4 py-2 text-sm font-bold text-[var(--ink)] transition group-hover:brightness-105">
+            Open KubeCon →
+          </span>
+        </Link>
+
+        {soonCard(COMING_SOON[1])}
+      </div>
     </div>
   );
 }

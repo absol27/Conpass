@@ -1,28 +1,123 @@
 @import "tailwindcss";
 
+/* Conpass brand: conpass-brand-kit/BRAND.md */
 :root {
-  --bg: #f7f7fb;
+  --bg: #f4f6fa;      /* off-white */
   --card: #ffffff;
-  --ink: #14142b;
-  --muted: #6b6b80;
-  --line: #e4e4ee;
-  --brand: #326ce5;
+  --ink: #0b2a5c;     /* navy */
+  --muted: #3f5378;   /* slate */
+  --line: #dce3ef;
+  --brand: #113e82;   /* blue, primary */
+  --accent: #d62293;  /* magenta */
+  --lead: #ffee88;    /* soft yellow, leads */
+  --support: #2bb8c9; /* teal */
+  --alert: #ff5470;   /* clashes */
+}
+
+@theme {
+  --color-brand: #113e82;
+  --color-accent: #d62293;
+  --color-lead: #ffee88;
+  --color-support: #2bb8c9;
+  --color-navy: #0b2a5c;
+  --color-panel: #e3e9f3;
+
+  /* Existing utility classes mapped onto the Conpass palette:
+     gray/slate = brand neutrals, amber = soft-yellow highlight (backtracking) with magenta/blue/navy for text,
+     orange/red = clash alert, teal/green = teal support, blue = brand blue, purple = magenta. */
+  --color-gray-50: #f4f6fa;
+  --color-gray-100: #e9eef6;
+  --color-gray-200: #dce3ef;
+  --color-gray-300: #c3cee0;
+  --color-gray-400: #94a3be;
+  --color-gray-500: #6a7b9a;
+  --color-gray-600: #3f5378;
+  --color-gray-700: #2f4468;
+  --color-gray-800: #1d355d;
+  --color-gray-900: #0b2a5c;
+  --color-slate-50: #f4f6fa;
+
+  --color-amber-50: #fffbe0;
+  --color-amber-100: #fff5b8;
+  --color-amber-200: #ffee88;
+  --color-amber-300: #f3de70;
+  --color-amber-400: #ecd055;
+  --color-amber-500: #e3bf2f;
+  --color-amber-600: #d62293;
+  --color-amber-700: #3f5378;
+  --color-amber-800: #113e82;
+  --color-amber-900: #0b2a5c;
+
+  --color-orange-50: #fff0f3;
+  --color-orange-200: #ffc2cd;
+  --color-orange-700: #d42a4c;
+  --color-red-50: #fff0f3;
+  --color-red-100: #ffe0e6;
+  --color-red-200: #ffc2cd;
+  --color-red-500: #ff5470;
+  --color-red-600: #e63b5d;
+  --color-red-700: #c41f43;
+
+  --color-green-50: #e5f7f9;
+  --color-green-700: #137f8c;
+  --color-teal-50: #e5f7f9;
+  --color-teal-200: #b3e6ed;
+  --color-teal-300: #80d6e1;
+  --color-teal-800: #0e5f69;
+
+  --color-blue-50: #e8eef8;
+  --color-blue-800: #113e82;
+
+  --color-purple-50: #fce9f5;
+  --color-purple-200: #f6c1e2;
+  --color-purple-300: #f07bc2;
+  --color-purple-900: #7d1056;
 }
 
 body {
-  background: var(--bg);
+  /* soft brand-colored light behind the page, so the frosted-glass cards have something to blur */
+  background:
+    radial-gradient(38rem 38rem at 6% 2%, rgba(43, 184, 201, 0.2), transparent 60%),
+    radial-gradient(34rem 34rem at 96% 8%, rgba(214, 34, 147, 0.13), transparent 60%),
+    radial-gradient(44rem 44rem at 72% 96%, rgba(255, 238, 136, 0.45), transparent 60%),
+    radial-gradient(40rem 40rem at 8% 92%, rgba(17, 62, 130, 0.14), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
   color: var(--ink);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+@layer components {
+  /* Frosted glass for cards, panels and option boxes. */
+  .glass {
+    background: rgba(255, 255, 255, 0.55);
+    -webkit-backdrop-filter: blur(16px) saturate(170%);
+    backdrop-filter: blur(16px) saturate(170%);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 8px 28px rgba(11, 42, 92, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  }
+}
+
+@layer base {
+  h1, h2, h3 { letter-spacing: -0.03em; }
+  h1 { font-weight: 800; color: var(--brand); }
 }
 
 .hatched {
-  background-image: repeating-linear-gradient(45deg, #e5e7eb 0 6px, #f3f4f6 6px 12px);
+  background-image: repeating-linear-gradient(45deg, #e3e9f3 0 6px, #f4f6fa 6px 12px);
 }
 
 @keyframes pulse-ring {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(50, 108, 229, 0.45); }
-  50% { box-shadow: 0 0 0 6px rgba(50, 108, 229, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(17, 62, 130, 0.45); }
+  50% { box-shadow: 0 0 0 6px rgba(17, 62, 130, 0); }
 }
 .pulse-ring { animation: pulse-ring 1.8s ease-in-out infinite; }
 
-mark { background: #fde68a; border-radius: 2px; padding: 0 1px; }
+/* Tag's "walk" pose bobs while something loads. */
+@keyframes tag-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.tag-bob { animation: tag-bob 0.7s ease-in-out infinite; }
+
+mark { background: #ffee88; border-radius: 2px; padding: 0 1px; }

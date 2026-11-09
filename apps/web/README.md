@@ -24,7 +24,8 @@ npm test                              # scheduler unit tests
 
 | Route | What it does |
 |---|---|
-| `/` | Screen 1: what the conference is and its 10 topic areas |
+| `/` | Welcome to Conpass: pick your conference (KubeCon NA 2026 is live; the others are "Coming soon" placeholders) |
+| `/kubecon` | Screen 1: what the conference is and its 10 topic areas |
 | `/onboarding` | Screen 2: pick interests (+ themed-lunch opt-in) → search talks/speakers (ES fuzzy + autocomplete) → import calendar (.ics upload, iCal URL, demo calendar, manual) |
 | `/plan/[day]` | Screen 3: day builder, described below |
 | `/live` | Day-of mode: now/next, "leave by", directions + map, *Room is full* / *I missed it* → gap fill. A demo clock lets you time-travel. |
@@ -41,15 +42,10 @@ All of this lives in `src/lib/scheduler/*`. These are pure functions, unit teste
 2. **Feasibility** (`feasibility.ts`): A then B is OK when `B.start ≥ A.end + walk`.
    - Arriving up to 5 minutes late is allowed but flagged.
    - Drop-in activities like lunch allow 30 minutes.
-3. **Day builder:**
-   - Locked calendar blocks and must-see anchors (★, dashed) are placed first.
-   - The builder then focuses on the next free window after your last pick. That window is highlighted, and arrows point to the options:
-     - **Recommended:** the top 3
-     - **Also in this window**
-     - **Clashes you might like**
-     - **Themed lunch**
-     - **Leave free**
-   - Tap any picked talk to see alternatives for that slot, or tap any gap to fill it.
+3. **Day builder:** the day starts blank, with only your locked calendar meetings and the talks you ★ starred (in the questionnaire, re-synced every time you open the day).
+   - The panel on the right shows the talks at the first start time of the day (e.g. 9:00), grouped by start time, with the best match for your interests marked.
+   - Pick one and it lands on the timeline in its topic color. The panel moves to when that talk ends (plus the walk) and shows what you can make next.
+   - Tap any picked talk to see alternatives for that slot, or any gap to fill it.
 4. **Recommendations** (`recommend.ts` → `/api/recommend`): an Elasticsearch `function_score` query.
    - Filters: day and time window.
    - Should clauses:
@@ -59,14 +55,11 @@ All of this lives in `src/lib/scheduler/*`. These are pure functions, unit teste
    - A `gauss` decay on start time ranks smaller gaps higher.
    - Named queries (`_name` → `matched_queries`) give the "why" chips.
    - The app then re-ranks against your real timeline (reachability, lateness, predicted demand).
-5. **Clashes + backtracking** (`backtrack.ts`, UI in `plan/[day]`): you can see every option, including ones that clash.
-   - The options lane next to your day draws each option at its real time. A talk that clashes (↺, orange) sits right beside the pick it would replace, and hovering it outlines that pick in red.
-   - **Pick a clashing talk:** it swaps out the pick(s) it overlaps. The time this frees *before* the new talk becomes the highlighted gap, e.g. pick a 9:45 talk over a 9:30–10:30 one and **9:30–9:45** opens up.
-   - **In a gap you can:**
-     - fill it (talks that fit, ranked by ES and similar to what you swapped out)
-     - **go further back**: pick an earlier talk (e.g. 9:20) that replaces the pick before the gap, which frees **9:00–9:20** next
-     - keep it free
-   - Backtracking never touches anything at or after the talk you just picked, and never moves locked calendar blocks. The amber trail lists every change, with **Undo last change** and **Restore my original plan**. If a swapped-out talk repeats later, the trail offers to add it there.
+5. **Going back** (`recommend.ts` + `backtrack.ts`, UI in `plan/[day]`): if a later talk interests you more, you can change past picks to make it fit.
+   - Above the next options, small boxes show talks that **start while your last pick is still running** (e.g. a 9:15 talk during your 9:00–9:30 pick).
+   - Choose one: your last pick comes off, and the time before the new talk (9:00–9:15) opens up. Fill it, keep it free, or go back another step with the small boxes for the pick before that.
+   - Each step replaces exactly one earlier pick. Nothing after the talk you chose changes, and starred talks and calendar meetings are never swapped out.
+   - The trail lists every change, with **Undo last change** and **Restore my original plan**. If a swapped-out talk repeats later, the trail offers to add it there.
 6. **Demand** (`/api/demand`): a `terms` aggregation over every attendee's schedule ÷ room capacity → "Filling up / Likely full" badges.
 7. **Gap fill** (`gapfill.ts` → `/api/live/gapfill`): one ES query finds:
    - talks you can still join (started ≤ 10 minutes ago)
@@ -80,16 +73,16 @@ If Elasticsearch is unreachable, search, recommendations and gap fill fall back 
 
 ## Demo script (about 4 minutes)
 
-1. `/` → **Plan my KubeCon**:
+1. `/` → **Open KubeCon** → **Plan my KubeCon**:
    - Tap Security twice and Platform Engineering once.
    - Keep themed lunch on (Security), and enter a name.
 2. Search `fabian kamel` (typo on purpose): Elasticsearch fuzzy matching finds **Fabian Kammel**. Follow them, and ★ a talk.
 3. Click **Use demo calendar**. This adds a daily 13:00 Zoom standup, a Day 1 offsite dinner at 17:30, and a Day 2 offsite customer coffee. Then **Build my schedule**.
-4. **Day 1 (Tue):** pick the keynote block. The highlighted slot jumps to the next talks, with arrows to the recommendations. Then pick **Securing Rural Colorado with Open Source** (11:30) and **What the Docs Don't Tell You** (12:20).
-5. **Clash + backtrack** (wide window, so the options lane shows):
-   1. In the options lane, the orange ↺ talks overlap your 12:20 pick. Pick **CNCF Bingo** (12:32).
-   2. The 12:20 talk is swapped out (ghosted) and **12:00–12:32** is highlighted in amber. It fits 12:02, 12:05 and 12:17 talks.
-   3. Under **Go further back**, pick **AI on Kubernetes Is Just a Pod With a GPU** (11:47). It replaces your 11:30 pick and opens **10:46–11:47** with more options.
+4. **Day 1 (Tue):** the day starts blank except the meetings and your starred talk. Pick the keynote block (9:00); the panel moves to the talks you can make after it.
+5. **Going back:**
+   1. Pick the 11:00 **Women's Community Gathering**. The small boxes on top show talks starting during it (11:30, 11:40, 11:47).
+   2. Choose **New Traffic, New Rules** (11:30). The 11:00 pick comes off and **10:46–11:30** opens up, with the 10:50 and 11:00 talks that fit.
+   3. Fill it with the 10:50 **Demo Theater**. The leftover 11:10–11:30 shows its own small boxes for going back one more step.
    4. Use **Undo last change** or **Restore my original plan** to show nothing is lost.
 6. Finish the day, choose **Build Wed now**, then **Export** (.ics / Google / webcal).
 7. `/live`: set the demo clock to a day and time inside a talk, then click **Room is full**. Suggestions appear: join-late talks, merch and the lounge.

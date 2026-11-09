@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { conference, getSession, sessions } from "@/lib/data";
@@ -15,6 +15,7 @@ import { DayTimeline, type TimelineOption } from "@/components/DayTimeline";
 import { OptionPanel, type BacktrackView } from "@/components/OptionPanel";
 import { ExportMenu } from "@/components/ExportMenu";
 import { Button, Modal } from "@/components/ui";
+import { Tag } from "@/components/Tag";
 
 type Mode = "forward" | "gap" | "replace";
 type Focus = { start: number; end: number; replacingId: string | null; mode: Mode };
@@ -44,6 +45,9 @@ function firstStartIn(day: number, w: { start: number; end: number }, taken: Set
   return starts.length ? Math.max(w.start, Math.min(...starts)) : null;
 }
 
+/** When the day's first session starts (freed time before it isn't worth showing). */
+const firstSessionStart = (day: number) => Math.min(...sessions.filter((s) => s.day === day && s.kind !== "activity").map((s) => ms(s.start)));
+
 /** Screen 3: build one day, one pick at a time. */
 export default function PlanDay() {
   const hydrated = useHydrated();
@@ -53,7 +57,7 @@ export default function PlanDay() {
   const profile = useStore((s) => s.profile);
   const blocks = useStore((s) => s.blocks);
   const plans = useStore((s) => s.plans);
-  const { initDay, applyPlans, removeSession, acceptAnchor, setCursor, setDone, resetDay } = useStore.getState();
+  const { initDay, applyPlans, removeSession, setCursor, setDone, resetDay } = useStore.getState();
   const plan = plans[day];
 
   useEffect(() => {
@@ -65,7 +69,7 @@ export default function PlanDay() {
 
   const [override, setOverride] = useState<Focus | null>(null);
   const [bt, setBt] = useState<Backtrack | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ text: string; ok?: boolean } | null>(null);
   useEffect(() => { setBt(null); setOverride(null); }, [day]);
   useEffect(() => {
     if (!notice) return;
@@ -83,7 +87,7 @@ export default function PlanDay() {
   );
 
   const focus: Focus | null = useMemo(() => {
-    if (bt?.gaps.length) return { start: bt.gaps[0].start, end: bt.gaps[0].end, replacingId: null, mode: "gap" };
+    if (bt?.gaps.length) return { start: Math.max(bt.gaps[0].start, firstSessionStart(day)), end: bt.gaps[0].end, replacingId: null, mode: "gap" };
     if (override) return override;
     const cursor = plan?.cursor ?? dayStart(day);
     for (const w of windows) {
@@ -111,10 +115,10 @@ export default function PlanDay() {
       interests: profile.interests,
       favoriteSpeakers: profile.favoriteSpeakers,
       plan: planForQuery,
-      taken: [...taken].filter((id) => id !== focus.replacingId),
+      taken: [...taken], // includes the talk being replaced, so it is not offered as its own alternative
       blocks,
-      mode: focus.mode === "gap" ? "gap" : "forward",
       likeIds: focus.mode === "gap" ? lastDisplaced : undefined,
+      protect: plan.anchorIds,
     })
       .then((r) => !cancelled && setData(r))
       .catch(() => !cancelled && setData(null))
@@ -130,7 +134,7 @@ export default function PlanDay() {
     const current = plan.sessionIds;
     const r = placeWithSwap(day, current, blocks, id, byId, focus.replacingId ? [focus.replacingId] : []);
     if (r.status === "blocked") {
-      setNotice(`"${x.title}" overlaps your locked "${r.blockedBy.title}". Personal commitments never move.`);
+      setNotice({ text: `"${x.title}" overlaps your locked "${r.blockedBy.title}". Personal commitments never move.` });
       return;
     }
     setNotice(null);
@@ -185,7 +189,7 @@ export default function PlanDay() {
   const addRepeat = (id: string) => {
     const s = byId(id);
     applyPlans({ [s.day]: [...(plans[s.day]?.sessionIds ?? []), id] });
-    setNotice(`Added "${s.title}" on ${dayLabel(s.day)}.`);
+    setNotice({ text: `Added "${s.title}" on ${dayLabel(s.day)}.`, ok: true });
   };
 
   const skip = () => {
@@ -197,6 +201,25 @@ export default function PlanDay() {
     const all = [...(data?.recommended ?? []), ...(data?.also ?? [])].map((s) => ms(byId(s.sessionId).end));
     setCursor(day, all.length ? Math.min(...all) : focus.end);
     setOverride(null);
+  };
+
+  /** Tapped a talk on the timeline: show what you could switch to in its slot. */
+  const openReplace = (id: string) => {
+    const s = getSession(id)!;
+    const without = slots.filter((x) => x.id !== id);
+    const w = freeWindows(without, dayStart(day), dayEnd(day)).find((x) => x.start <= ms(s.start) && x.end >= ms(s.end));
+    setBt(null);
+    if (w) setOverride({ start: Math.max(w.start, ms(s.start) - 30 * MIN), end: w.end, replacingId: id, mode: "replace" });
+  };
+
+  /** Clicked a time on the timeline: a talk there gives switch options; free time gives the options from then. */
+  const pickTime = (t: number) => {
+    const there = daySessions.find((s) => ms(s.start) <= t && t < ms(s.end));
+    if (there) return openReplace(there.id);
+    const w = freeWindows(slots, dayStart(day), dayEnd(day), 1).find((x) => x.start <= t && t < x.end);
+    if (!w) return; // inside a locked meeting
+    setBt(null);
+    setOverride({ start: t, end: w.end, replacingId: null, mode: "forward" });
   };
 
   const [showDone, setShowDone] = useState(false);
@@ -215,39 +238,12 @@ export default function PlanDay() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, plan, focus, day]);
 
-  // --- arrows from the highlighted slot to the option cards ---
-  const containerRef = useRef<HTMLDivElement>(null);
+  // Keep the time the panel is showing options for in view on the timeline, and show the panel from the top.
   const focusRef = useRef<HTMLDivElement>(null);
-  const cards = useRef(new Map<string, HTMLElement>());
-  const [paths, setPaths] = useState<string[]>([]);
-  const registerCard = useCallback((key: string, el: HTMLElement | null) => {
-    if (el) cards.current.set(key, el);
-    else cards.current.delete(key);
-  }, []);
-  const recompute = useCallback(() => {
-    const c = containerRef.current, f = focusRef.current;
-    if (!c || !f || window.innerWidth < 1024) { setPaths([]); return; }
-    const cr = c.getBoundingClientRect(), fr = f.getBoundingClientRect();
-    const x0 = fr.right - cr.left, y0 = fr.top + Math.min(fr.height / 2, 40) - cr.top;
-    const out: string[] = [];
-    for (const el of cards.current.values()) {
-      const r = el.getBoundingClientRect();
-      if (r.bottom < 0 || r.top > window.innerHeight) continue;
-      const x1 = r.left - cr.left - 6, y1 = r.top + Math.min(28, r.height / 2) - cr.top;
-      const mx = (x0 + x1) / 2;
-      out.push(`M ${x0} ${y0} C ${mx} ${y0}, ${mx} ${y1}, ${x1} ${y1}`);
-    }
-    setPaths(out);
-  }, []);
-  useLayoutEffect(() => {
-    recompute();
-    const t = setTimeout(recompute, 50);
-    window.addEventListener("scroll", recompute, { passive: true });
-    window.addEventListener("resize", recompute);
-    return () => { clearTimeout(t); window.removeEventListener("scroll", recompute); window.removeEventListener("resize", recompute); };
-  }, [recompute, data, loading, focusKey, bt]);
+  const panelRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     focusRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    panelRef.current?.scrollTo({ top: 0 });
   }, [focusKey]);
 
   const [hover, setHover] = useState<string | null>(null);
@@ -260,11 +256,11 @@ export default function PlanDay() {
   const walking = walkingMinutes(daySessions);
   const nextDay = conference.days.find((d) => d.day === day + 1);
 
+  // Hovering an option in the panel previews it on the timeline.
   const options: TimelineOption[] = data
     ? [
         ...[...data.recommended, ...data.also].map((s) => ({ session: byId(s.sessionId), type: "fit" as const, replaces: [] })),
         ...data.swaps.map((s) => ({ session: byId(s.sessionId), type: "swap" as const, replaces: s.replaces })),
-        ...data.blocked.map((s) => ({ session: byId(s.sessionId), type: "blocked" as const, replaces: [] })),
       ]
     : [];
   const ghosts = bt ? bt.steps.flatMap((s) => s.displaced).filter((id) => !plan.sessionIds.includes(id)).map(byId) : [];
@@ -281,7 +277,7 @@ export default function PlanDay() {
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <div className="flex rounded-xl border border-[var(--line)] bg-white p-1">
+        <div className="glass flex rounded-xl p-1">
           {conference.days.map((d) => (
             <Link key={d.day} href={`/plan/${d.day}`} className={`rounded-lg px-3 py-1.5 text-sm ${d.day === day ? "bg-[var(--brand)] text-white" : "text-[var(--muted)]"}`}>
               {d.label}
@@ -293,56 +289,37 @@ export default function PlanDay() {
           {daySessions.filter((s) => s.kind !== "activity").length} talks · 🚶 {walking} min walking
         </div>
         <div className="ml-auto flex gap-2">
-          <Button variant="ghost" onClick={() => { resetDay(day); setOverride(null); setBt(null); doneShownFor.current = null; }}>Start over</Button>
+          <Button variant="ghost" onClick={() => { resetDay(day); initDay(day); setOverride(null); setBt(null); doneShownFor.current = null; }}>Start over</Button>
           <ExportMenu day={day} />
         </div>
       </div>
 
-      {notice && <div className="mb-3 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm shadow-sm">{notice}</div>}
+      {notice && (
+        <div className={`mb-3 flex items-center gap-3 rounded-xl border ${notice.ok ? "border-teal-200" : "border-red-200"} bg-white px-4 py-2 text-sm shadow-sm`}>
+          <Tag pose={notice.ok ? "cheer" : "oops"} size={40} />
+          {notice.text}
+        </div>
+      )}
 
-      <div ref={containerRef} className="relative grid gap-6 lg:grid-cols-[minmax(480px,600px)_1fr]">
-        <svg className="pointer-events-none absolute inset-0 z-10 hidden h-full w-full overflow-visible lg:block">
-          <defs>
-            <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill={focus?.mode === "gap" ? "#d97706" : "#326ce5"} />
-            </marker>
-          </defs>
-          {paths.map((d, i) => (
-            <path key={i} d={d} fill="none" stroke={focus?.mode === "gap" ? "#d97706" : "#326ce5"} strokeWidth={i === 0 ? 2.5 : 1.5} strokeDasharray={i === 0 ? undefined : "5 4"} markerEnd="url(#arrow)" opacity={0.75} />
-          ))}
-        </svg>
-
+      <div className="grid gap-6 lg:grid-cols-[minmax(420px,520px)_1fr]">
         <DayTimeline
           ref={focusRef}
           day={day}
           sessions={daySessions}
           anchorIds={plan.anchorIds}
           blocks={dayBlocks}
-          windows={windows}
           focus={focus}
           replacingId={focus?.replacingId ?? null}
           ghosts={ghosts}
           options={options}
           hoverId={hover}
-          onHover={setHover}
-          onPick={pick}
-          onFocusWindow={(w: Window) => {
-            const first = firstStartIn(day, w, taken);
-            setBt(null);
-            setOverride({ start: first ?? w.start, end: w.end, replacingId: null, mode: "forward" });
-          }}
-          onReplace={(id) => {
-            const s = getSession(id)!;
-            const without = slots.filter((x) => x.id !== id);
-            const w = freeWindows(without, dayStart(day), dayEnd(day)).find((x) => x.start <= ms(s.start) && x.end >= ms(s.end));
-            setBt(null);
-            if (w) setOverride({ start: Math.max(w.start, ms(s.start) - 30 * MIN), end: w.end, replacingId: id, mode: "replace" });
-          }}
+          onPickTime={pickTime}
+          onReplace={openReplace}
           onRemove={(id) => { removeSession(day, id); setOverride(null); setBt(null); }}
-          onAcceptAnchor={(id) => acceptAnchor(day, id)}
         />
 
-        <div className="lg:sticky lg:top-20 lg:self-start">
+        {/* pinned on wide screens with its own scroll, so the options and the calendar scroll separately */}
+        <div ref={panelRef} className="lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain lg:pb-4 lg:pr-1">
           {focus ? (
             <OptionPanel
               mode={focus.mode}
@@ -363,11 +340,10 @@ export default function PlanDay() {
               onEndBacktrack={() => setBt(null)}
               onAddRepeat={addRepeat}
               onHover={setHover}
-              registerCard={registerCard}
             />
           ) : (
-            <div className="rounded-2xl border border-[var(--line)] bg-white p-6">
-              <div className="text-3xl">🎉</div>
+            <div className="glass rounded-2xl p-6">
+              <Tag pose="cheer" size={88} />
               <h2 className="mt-2 text-lg font-bold">{dayLabel(day)} is planned</h2>
               <p className="text-sm text-[var(--muted)]">Tap any talk on the timeline to see alternatives, or any gap to fill it.</p>
               <div className="mt-4 flex flex-wrap gap-2">
@@ -377,14 +353,14 @@ export default function PlanDay() {
             </div>
           )}
           {plan.anchorIds.length > 0 && (
-            <p className="mt-4 text-xs text-[var(--muted)]">★ Dashed talks are your must-sees, placed automatically. Hover to keep or remove them.</p>
+            <p className="mt-4 text-xs text-[var(--muted)]">★ Talks you starred are placed for you and never swapped out. Hover one and tap ✕ to remove it.</p>
           )}
         </div>
       </div>
 
       {showDone && (
         <Modal onClose={() => setShowDone(false)}>
-          <div className="text-3xl">🎉</div>
+          <Tag pose="cheer" size={110} className="mx-auto block" />
           <h2 className="mt-2 text-xl font-bold">{dayLabel(day)} is ready</h2>
           <p className="text-sm text-[var(--muted)]">
             {daySessions.filter((s) => s.kind !== "activity").length} sessions, {walking} minutes of walking, {dayBlocks.length} personal commitment{dayBlocks.length === 1 ? "" : "s"} protected.

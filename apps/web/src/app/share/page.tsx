@@ -27,7 +27,7 @@ export default function Share() {
 
   return (
     <div className="mx-auto max-w-md space-y-4">
-      <div className="flex rounded-xl border border-[var(--line)] bg-white p-1 text-sm">
+      <div className="glass flex rounded-xl p-1 text-sm">
         {(["schedule", "contact"] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)} className={`flex-1 rounded-lg py-2 ${tab === t ? "bg-[var(--brand)] text-white" : "text-[var(--muted)]"}`}>
             {t === "schedule" ? "📅 Share schedule" : "🤝 Exchange contact"}
@@ -36,7 +36,7 @@ export default function Share() {
       </div>
 
       <Card className="flex flex-col items-center gap-3 text-center">
-        <QRCodeSVG value={url} size={220} level="M" />
+        <QRCodeSVG value={url} size={220} level="H" fgColor="#0b2a5c" imageSettings={{ src: "/tag/tag-wave-wink.svg", width: 52, height: 52, excavate: true }} />
         <p className="text-sm text-[var(--muted)]">
           {tab === "schedule"
             ? "Let someone scan this to see the talks you share, when you can meet up, and whether you'd enjoy the same themed lunch."
