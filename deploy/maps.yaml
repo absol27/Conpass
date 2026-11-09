@@ -47,7 +47,7 @@ spec:
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: "service.namespace=conpass,k8s.namespace.name=team-conpass,k8s.deployment.name=maps,k8s.pod.name=$(POD_NAME)"
             - name: NODE_OPTIONS
-              value: "--import @opentelemetry/auto-instrumentations-node/register"
+              value: "--import ./otel.mjs"
             - name: OTEL_NODE_ENABLED_INSTRUMENTATIONS
               value: http
             - name: OTEL_TRACES_EXPORTER
