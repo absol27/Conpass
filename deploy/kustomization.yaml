@@ -14,4 +14,4 @@ resources:
 images:
   - name: web
     newName: ghcr.io/absol27/conpass/web
-    newTag: latest
+    newTag: 1b22b7e
