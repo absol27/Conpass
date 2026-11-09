@@ -8,6 +8,7 @@ import { api, syncNow, useHydrated, useNow } from "@/lib/client";
 import { dayLabel, fmtTime } from "@/lib/time";
 import type { LunchMatch, Meetup } from "@/lib/social";
 import { Button, Card, SessionMeta } from "@/components/ui";
+import { Tag } from "@/components/Tag";
 
 type CardInfo = { userId: string; name: string; linkedin: string; role: string; company: string };
 type Result =
@@ -57,8 +58,8 @@ export default function Connect() {
     );
   }
 
-  if (error) return <Card className="mx-auto max-w-md text-sm text-red-700">{error}</Card>;
-  if (!result) return <div className="text-center text-sm text-[var(--muted)]">Connecting…</div>;
+  if (error) return <Card className="mx-auto flex max-w-md items-center gap-3 text-sm text-red-700"><Tag pose="oops" size={56} />{error}</Card>;
+  if (!result) return <div className="flex flex-col items-center gap-2 text-sm text-[var(--muted)]"><Tag pose="walk" size={72} />Connecting…</div>;
 
   const card = result.card;
   return (
@@ -74,8 +75,9 @@ export default function Connect() {
       </Card>
 
       {result.kind === "contact" ? (
-        <Card className="text-sm">
-          ✅ Saved to <Link href="/people" className="underline">People I met</Link>. They got your card too.
+        <Card className="flex items-center gap-3 text-sm">
+          <Tag pose="cheer" size={56} />
+          <span>Saved to <Link href="/people" className="underline">People I met</Link>. They got your card too.</span>
         </Card>
       ) : (
         <>

@@ -7,6 +7,7 @@ import { api, useHydrated } from "@/lib/client";
 import { dayLabel, fmtTime } from "@/lib/time";
 import type { Block } from "@/lib/types";
 import { Button, Card, SessionMeta, TopicChip } from "@/components/ui";
+import { Tag } from "@/components/Tag";
 
 const STEPS = ["Your interests", "Must-see talks & speakers", "Your non-negotiables"];
 
@@ -49,7 +50,7 @@ export default function Onboarding() {
       {step === 2 && <CalendarStep />}
 
       <div className="mt-6 flex justify-between">
-        <Button variant="ghost" onClick={() => (step === 0 ? router.push("/") : setStep(step - 1))}>
+        <Button variant="ghost" onClick={() => (step === 0 ? router.push("/kubecon") : setStep(step - 1))}>
           ← Back
         </Button>
         {step < 2 ? (
@@ -73,9 +74,12 @@ function InterestsStep() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold">What are you here for?</h1>
-        <p className="text-sm text-[var(--muted)]">Tap once for interested, twice for very interested ★.</p>
+      <div className="flex items-center gap-3">
+        <Tag pose="wave" size={64} />
+        <div>
+          <h1 className="text-2xl font-bold">What are you here for?</h1>
+          <p className="text-sm text-[var(--muted)]">Tap once for interested, twice for very interested ★.</p>
+        </div>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         {conference.topics.map((t) => {
@@ -84,8 +88,8 @@ function InterestsStep() {
             <button
               key={t.id}
               onClick={() => setInterest(t.id, (w + 1) % 3)}
-              className="rounded-2xl border-2 bg-white p-4 text-left transition"
-              style={{ borderColor: w ? t.color : "var(--line)", background: w === 2 ? `${t.color}12` : "white" }}
+              className="glass rounded-2xl border-2 p-4 text-left transition"
+              style={{ borderColor: w ? t.color : undefined, background: w === 2 ? `${t.color}1f` : undefined }}
             >
               <div className="flex items-center justify-between">
                 <span className="font-semibold">{t.label}</span>
@@ -164,7 +168,7 @@ function SearchStep() {
       </div>
       <input
         autoFocus
-        className="w-full rounded-2xl border border-[var(--line)] bg-white p-4 text-lg shadow-sm outline-none focus:border-[var(--brand)]"
+        className="glass w-full rounded-2xl p-4 text-lg outline-none focus:border-[var(--brand)]"
         placeholder="e.g. opentelemetry, kyverno, Priya Petrova…"
         value={q}
         onChange={(e) => setQ(e.target.value)}
@@ -189,7 +193,7 @@ function SearchStep() {
           if (!s) return null;
           const fav = profile.favoriteSessionIds.includes(s.id);
           return (
-            <div key={s.id} className="flex items-start gap-3 rounded-2xl border border-[var(--line)] bg-white p-3">
+            <div key={s.id} className="glass flex items-start gap-3 rounded-2xl p-3">
               <button onClick={() => toggleSession(s.id)} className={`mt-0.5 text-xl ${fav ? "text-amber-500" : "text-gray-300 hover:text-amber-400"}`} title="Must see">
                 ★
               </button>
@@ -202,7 +206,7 @@ function SearchStep() {
             </div>
           );
         })}
-        {res && res.sessions.length === 0 && <p className="text-sm text-[var(--muted)]">No matches.</p>}
+        {res && res.sessions.length === 0 && <p className="flex items-center gap-2 text-sm text-[var(--muted)]"><Tag pose="look" size={40} />No matches.</p>}
         {res?.source === "local" && <p className="text-xs text-amber-700">Elasticsearch unavailable, using basic search.</p>}
       </div>
 

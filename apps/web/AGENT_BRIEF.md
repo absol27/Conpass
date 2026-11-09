@@ -21,14 +21,14 @@ The user has their own vision for the overall app. This repo is **the scheduler 
 - Refer to people (users, speakers) with they/them unless told otherwise.
 
 ## The user's intended UX flow
-1. **Screen 1:** what the conference is about and its topic areas.
+0. **Welcome to Conpass** (`/`): pick a conference. Only KubeCon NA 2026 is real; the rest show "Coming soon".
+1. **Screen 1** (`/kubecon`): what the conference is about and its topic areas.
 2. **Screen 2:** pick interest areas, then search specific talks or speakers (must-sees), then import non-negotiables from a personal calendar.
-3. **Screen 3, day builder:** one day at a time. Calendar blocks are locked, and must-sees are pre-placed as anchors. You pick a talk; the app then suggests the next ones based on interests, the last talk's end time, and walking time between rooms. The next free slot is highlighted, with arrows to the options.
-4. **Clashes and backtracking** (the user's current focus):
-   - Show every option, including clashing ones.
-   - Example: you have 9:00–9:30 and 9:30–10:30. You pick a 9:45 talk, so the 9:30 pick is swapped out and **9:30–9:45** is freed and highlighted.
-   - The app offers talks that fit the gap, or **going further back**: a 9:20 talk that replaces the 9:00 pick, which then frees 9:00–9:20, and so on.
-   - Nothing at or after the new pick changes. Every step can be undone.
+3. **Screen 3, day builder:** one day at a time. It starts blank: only locked calendar meetings and the talks the user ★ starred (re-synced from the questionnaire whenever the day opens). The right panel shows the talks at the day's first start time; each pick lands on the timeline in its topic color, and the panel moves to what you can make after it (end time + walking time). No highlight box, arrows or options lane: the user found them overwhelming.
+4. **Going back** (the heart of the project):
+   - Above the next options, small boxes show talks that start while the last pick is still running (e.g. a 9:15 talk during a 9:00–9:30 pick).
+   - Choosing one replaces that pick only, and the freed time before it (9:00–9:15) becomes the slot to fill, with its own small boxes for the pick before that, and so on.
+   - Nothing at or after the new pick changes; starred talks and meetings are never swapped out. Every step can be undone.
 5. When a day is finished, it asks: "Build the next day now" or "Save & finish later". Export goes to Outlook, Apple and Google (`.ics`, per-event Google links, webcal subscription).
 6. **Live mode (day of):** where you should be now, a "leave by" time, directions and a map. "Room is full" or "I missed it" brings up options that fit the gap (talks you can still join, merch, expo, lounge).
 7. **Social:**
@@ -67,11 +67,11 @@ The user has their own vision for the overall app. This repo is **the scheduler 
   - `store.ts`: zustand; persist version 2 drops unknown session ids.
   - `es.ts`, `indices.ts`, `server/store.ts`: ES client, mappings, attendee/demand helpers.
 - `src/app/`
-  - pages: `/`, `/onboarding`, `/plan/[day]`, `/live`, `/share`, `/connect/[token]`, `/people`
+  - pages: `/` (conference picker), `/kubecon`, `/onboarding`, `/plan/[day]`, `/live`, `/share`, `/connect/[token]`, `/people`
   - `api/`: `search`, `recommend`, `demand`, `import-ics`, `export/[userId]`, `me`, `live/gapfill`, `session-status`, `connect`, `connections`
 - `src/components/`
-  - `DayTimeline.tsx`: your plan, plus an options lane where clashes (orange ↺) appear beside the pick they'd replace, plus ghosts of swapped-out talks
-  - `OptionPanel.tsx`: recommended cards, grouped option lists, the backtrack trail with undo
+  - `DayTimeline.tsx`: a clean day: meetings, starred talks (★) and picks in their topic color, plus ghosts of swapped-out talks. Hovering an option previews it.
+  - `OptionPanel.tsx`: small "go back" boxes on top (talks starting during your last pick), the next talks grouped by start time, and the backtrack trail with undo
   - `VenueMap`, `ExportMenu`, `ui.tsx`
 - The day builder's state machine is in `src/app/plan/[day]/page.tsx`.
   - Focus modes: `forward` (next free window after the cursor), `gap` (backtracking into freed time) and `replace` (the user tapped a picked talk).
@@ -101,4 +101,4 @@ npm test
 - "Tap phones" is a QR code that opens a URL (Web NFC is a stretch goal).
 - The webcal subscription needs a public URL.
 
-The README has a demo script that walks the backtracking story on real Tuesday talks (11:30 → 12:20 → pick 12:32 → freed 12:00–12:32 → go back to 11:47 → freed 10:46–11:47).
+The README has a demo script that walks the going-back story on real Tuesday talks (keynote → 11:00 → switch to 11:30 → freed 10:46–11:30 → fill with 10:50 → leftover 11:10–11:30).

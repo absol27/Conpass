@@ -3,8 +3,8 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { nanoid } from "nanoid";
 import type { Attendee, Block, DayPlan, Profile } from "./types";
-import { conference, sessions } from "./data";
-import { fits, sessionSlot, blockSlot } from "./scheduler/feasibility";
+import { conference, getSession, sessions } from "./data";
+import { clashes, fits, sessionSlot, blockSlot } from "./scheduler/feasibility";
 import { ms } from "./time";
 
 const emptyPlan = (): DayPlan => ({ sessionIds: [], anchorIds: [], cursor: null, done: false });
@@ -41,12 +41,14 @@ type State = {
   setBlocks: (blocks: Block[]) => void;
   removeBlock: (id: string) => void;
   setOnboarded: (v: boolean) => void;
-  /** Start a day: pre-place favorite talks and followed speakers as tentative anchors. */
+  /**
+   * Start a day, or bring it up to date with the questionnaire: starred talks (and followed speakers'
+   * talks) are placed as must-sees, and must-sees you un-starred come off again.
+   */
   initDay: (day: number) => void;
   /** Apply plans returned by the scheduler (all days, since encores can move talks across days). */
   applyPlans: (plans: Record<number, string[]>, cursor?: { day: number; at: number }) => void;
   removeSession: (day: number, id: string) => void;
-  acceptAnchor: (day: number, id: string) => void;
   setCursor: (day: number, at: number | null) => void;
   setDone: (day: number, done: boolean) => void;
   resetDay: (day: number) => void;
@@ -87,18 +89,27 @@ export const useStore = create<State>()(
 
       initDay: (day) => {
         const { plans, profile, blocks } = get();
-        if (plans[day]) return;
+        const prev = plans[day] ?? emptyPlan();
         const favs = sessions
           .filter((s) => s.day === day && s.kind !== "activity")
           .filter((s) => profile.favoriteSessionIds.includes(s.id) || s.speakers.some((p) => profile.favoriteSpeakers.includes(p.name)))
           .sort((a, b) => Number(profile.favoriteSessionIds.includes(b.id)) - Number(profile.favoriteSessionIds.includes(a.id)) || ms(a.start) - ms(b.start));
-        const slots = blocks.filter((b) => b.day === day).map(blockSlot);
-        const anchors: string[] = [];
+        const wanted = new Set(favs.map((s) => s.id));
+        let ids = prev.sessionIds.filter((id) => !prev.anchorIds.includes(id) || wanted.has(id));
+        const anchors = prev.anchorIds.filter((id) => wanted.has(id));
+        // Meetings and must-sees already placed win; a newly starred talk replaces ordinary picks it clashes with.
+        const fixed = [...blocks.filter((b) => b.day === day).map(blockSlot), ...anchors.map((id) => sessionSlot(getSession(id)!))];
         for (const s of favs) {
           const slot = sessionSlot(s);
-          if (fits(slots, slot)) { slots.push(slot); anchors.push(s.id); }
+          if (ids.includes(s.id) || !fits(fixed, slot)) continue;
+          ids = ids.filter((id) => !clashes(sessionSlot(getSession(id)!), slot));
+          ids.push(s.id);
+          anchors.push(s.id);
+          fixed.push(slot);
         }
-        set({ plans: { ...plans, [day]: { ...emptyPlan(), sessionIds: anchors, anchorIds: anchors } } });
+        const same = plans[day] && ids.length === prev.sessionIds.length && ids.every((id) => prev.sessionIds.includes(id)) && anchors.length === prev.anchorIds.length;
+        if (same) return;
+        set({ plans: { ...plans, [day]: { ...prev, sessionIds: ids, anchorIds: anchors, done: false } } });
       },
 
       applyPlans: (next, cursor) =>
@@ -116,11 +127,6 @@ export const useStore = create<State>()(
         set((s) => {
           const p = s.plans[day] ?? emptyPlan();
           return { plans: { ...s.plans, [day]: { ...p, sessionIds: p.sessionIds.filter((x) => x !== id), anchorIds: p.anchorIds.filter((x) => x !== id), done: false } } };
-        }),
-      acceptAnchor: (day, id) =>
-        set((s) => {
-          const p = s.plans[day];
-          return { plans: { ...s.plans, [day]: { ...p, anchorIds: p.anchorIds.filter((x) => x !== id) } } };
         }),
       setCursor: (day, at) => set((s) => ({ plans: { ...s.plans, [day]: { ...(s.plans[day] ?? emptyPlan()), cursor: at } } })),
       setDone: (day, done) => set((s) => ({ plans: { ...s.plans, [day]: { ...(s.plans[day] ?? emptyPlan()), done } } })),

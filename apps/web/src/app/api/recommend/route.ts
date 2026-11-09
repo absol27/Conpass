@@ -16,10 +16,10 @@ type Body = {
   /** Picks on all days. */
   taken?: string[];
   blocks: Block[];
-  /** "gap" when backtracking into time freed by a swap. */
-  mode?: "forward" | "gap";
   /** Talks to find similar options to (in gap mode: the ones you just swapped out). */
   likeIds?: string[];
+  /** Starred must-sees: never offered for swapping out. */
+  protect?: string[];
 };
 
 export async function POST(req: Request) {
@@ -36,9 +36,11 @@ export async function POST(req: Request) {
     likeIds,
     // skip anything already picked on any day, including repeats of it
     excludeIds: withSeries([...body.plan, ...(body.taken ?? [])]),
+    // also fetch talks that start while your last pick is still running (the "go back" options)
+    backFrom: prev?.kind === "session" ? prev.start : undefined,
   };
-  // Backtracking never swaps out what's at or after the gap.
-  const protectedIds = body.mode === "gap" ? new Set(body.plan.filter((id) => ms(getSession(id)!.start) >= body.window.end)) : undefined;
+  // Going back only changes the past: starred must-sees and anything at or after the slot never move.
+  const protectedIds = new Set([...(body.protect ?? []), ...body.plan.filter((id) => ms(getSession(id)!.start) >= body.window.end)]);
 
   let candidates: Candidate[];
   let source = "elasticsearch";
@@ -59,6 +61,6 @@ export async function POST(req: Request) {
 
   const likeTitle = body.likeIds?.length ? getSession(body.likeIds[0])?.title : prevSession?.title;
   const window = { start: body.window.start, end: body.window.end, prev };
-  const result = rankCandidates(candidates.filter((c) => c.session), { slots, window, prev, demand, prevTitle: likeTitle, protectedIds, mode: body.mode });
+  const result = rankCandidates(candidates.filter((c) => c.session), { slots, window, prev, demand, prevTitle: likeTitle, protectedIds });
   return NextResponse.json({ ...result, source, prevId: prev?.id ?? null });
 }

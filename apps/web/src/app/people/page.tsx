@@ -6,6 +6,7 @@ import { api, useHydrated } from "@/lib/client";
 import { dayLabel, dayOf, fmtTime, ms } from "@/lib/time";
 import type { Connection } from "@/lib/types";
 import { Button, Card } from "@/components/ui";
+import { Tag } from "@/components/Tag";
 
 /** Everyone you met, with where and when, so you can reach out after the conference. */
 export default function People() {
@@ -37,8 +38,9 @@ export default function People() {
         <p className="text-sm text-[var(--muted)]">Every scan is remembered with the talk or activity you were at, so you know who&apos;s who.</p>
       </div>
       {people.size === 0 && (
-        <Card className="text-sm">
-          No one yet. Open <Link href="/share" className="underline">Share</Link> and let someone scan your code.
+        <Card className="flex items-center gap-4 text-sm">
+          <Tag pose="look" size={72} />
+          <span>No one yet. Open <Link href="/share" className="underline">Share</Link> and let someone scan your code.</span>
         </Card>
       )}
       {[...byDay.entries()].map(([label, items]) => (

@@ -10,6 +10,7 @@ import type { GapSuggestion } from "@/lib/scheduler/gapfill";
 import type { Session } from "@/lib/types";
 import { Button, Card, SessionMeta, topicColor } from "@/components/ui";
 import { VenueMap } from "@/components/VenueMap";
+import { Tag } from "@/components/Tag";
 
 type GapResult = { window: { start: number; end: number }; suggestions: GapSuggestion[]; source: string };
 
@@ -69,14 +70,20 @@ export default function Live() {
       <TimeTravel now={now} />
 
       {!day ? (
-        <Card>
-          <h1 className="text-lg font-bold">The conference hasn&apos;t started (or is over)</h1>
-          <p className="text-sm text-[var(--muted)]">Use the demo clock above to jump into a conference day.</p>
+        <Card className="flex items-center gap-4">
+          <Tag pose="look" size={80} />
+          <div>
+            <h1 className="text-lg font-bold">The conference hasn&apos;t started (or is over)</h1>
+            <p className="text-sm text-[var(--muted)]">Use the demo clock above to jump into a conference day.</p>
+          </div>
         </Card>
       ) : items.length === 0 ? (
-        <Card>
-          <h1 className="text-lg font-bold">No plan for {conference.days.find((d) => d.day === day)?.label} yet</h1>
-          <Link href={`/plan/${day}`}><Button className="mt-3">Build it now</Button></Link>
+        <Card className="flex items-center gap-4">
+          <Tag pose="wave" size={80} />
+          <div>
+            <h1 className="text-lg font-bold">No plan for {conference.days.find((d) => d.day === day)?.label} yet</h1>
+            <Link href={`/plan/${day}`}><Button className="mt-3">Build it now</Button></Link>
+          </div>
         </Card>
       ) : (
         <div className="grid gap-5 lg:grid-cols-2">
@@ -119,7 +126,10 @@ export default function Live() {
 
             {gap && (
               <Card className="border-2 border-amber-300">
-                <div className="text-sm font-semibold text-amber-800">{gap.reason}. Here&apos;s what fits until {fmtTime(gap.result.window.end)}:</div>
+                <div className="flex items-center gap-3">
+                  <Tag pose="oops" size={48} />
+                  <div className="text-sm font-semibold text-amber-800">{gap.reason}. Here&apos;s what fits until {fmtTime(gap.result.window.end)}:</div>
+                </div>
                 <div className="mt-3 space-y-2">
                   {gap.result.suggestions.map((g) => {
                     const s = getSession(g.sessionId)!;
@@ -144,7 +154,10 @@ export default function Live() {
           <div className="space-y-4">
             {route && target && (
               <Card>
-                <div className="text-sm font-semibold">Directions to {roomById.get(target.roomId)?.name}</div>
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <Tag pose="point" size={44} />
+                  Directions to {roomById.get(target.roomId)?.name}
+                </div>
                 <VenueMap route={route.zones} here={route.zones[0]} there={route.zones.at(-1)} />
                 <ol className="mt-3 list-inside list-decimal space-y-1 text-sm">
                   {route.steps.map((s) => <li key={s}>{s}</li>)}
