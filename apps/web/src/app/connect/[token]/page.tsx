@@ -9,6 +9,7 @@ import { dayLabel, fmtTime } from "@/lib/time";
 import type { LunchMatch, Meetup } from "@/lib/social";
 import { Button, Card, SessionMeta } from "@/components/ui";
 import { Tag } from "@/components/Tag";
+import { NoteBox } from "@/components/NoteBox";
 
 type CardInfo = { userId: string; name: string; linkedin: string; role: string; company: string };
 type Result =
@@ -72,6 +73,10 @@ export default function Connect() {
           <div className="text-xs text-[var(--muted)]">Met during: {result.context}</div>
         </div>
         {card.linkedin && <a href={card.linkedin} target="_blank" rel="noreferrer"><Button variant="secondary">in Connect</Button></a>}
+      </Card>
+
+      <Card>
+        <NoteBox userId={card.userId} name={card.name} />
       </Card>
 
       {result.kind === "contact" ? (
