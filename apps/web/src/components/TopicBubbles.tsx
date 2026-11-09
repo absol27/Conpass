@@ -112,7 +112,6 @@ export function TopicBubbles() {
     return (
       <button
         key={t.id}
-        role="listitem"
         onClick={() => setSelected(t.id)}
         onMouseEnter={() => setSelected(t.id)}
         onFocus={() => setSelected(t.id)}
@@ -146,7 +145,7 @@ export function TopicBubbles() {
 
   return (
     <div>
-      <div ref={ref} className="w-full overflow-hidden py-2" role="list">
+      <div ref={ref} className="w-full overflow-hidden py-2">
         {packed ? (
           <div className="relative mx-auto" style={{ width: box.w * scale, height: box.h * scale }}>
             <div className="absolute left-0 top-0 origin-top-left" style={{ width: box.w, height: box.h, transform: `scale(${scale})` }}>

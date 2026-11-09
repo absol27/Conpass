@@ -66,8 +66,22 @@ export const DayTimeline = forwardRef<HTMLDivElement, Props>(function DayTimelin
 
           {/* click anywhere that isn't a talk to see the options from that time */}
           <div
+            role="button"
+            tabIndex={0}
+            aria-label="Choose a time; use the up and down arrow keys to move in 5-minute increments, then press Enter or Space"
             className="absolute inset-0 cursor-pointer"
             onClick={(e) => p.onPickTime(timeAt(e))}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                e.preventDefault();
+                setPointer((t) => Math.min(t1, Math.max(t0, (t ?? p.focus?.start ?? t0) + (e.key === "ArrowDown" ? 5 * MIN : -5 * MIN))));
+              } else if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                p.onPickTime(pointer ?? p.focus?.start ?? t0);
+              }
+            }}
+            onFocus={() => setPointer((t) => t ?? p.focus?.start ?? t0)}
+            onBlur={() => setPointer(null)}
             onMouseMove={(e) => setPointer(timeAt(e))}
             onMouseLeave={() => setPointer(null)}
           />

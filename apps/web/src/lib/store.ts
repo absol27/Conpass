@@ -101,7 +101,9 @@ export const useStore = create<State>()(
         const fixed = [...blocks.filter((b) => b.day === day).map(blockSlot), ...anchors.map((id) => sessionSlot(getSession(id)!))];
         for (const s of favs) {
           const slot = sessionSlot(s);
-          if (ids.includes(s.id) || !fits(fixed, slot)) continue;
+          if (anchors.includes(s.id)) continue;
+          if (ids.includes(s.id)) { anchors.push(s.id); fixed.push(slot); continue; }
+          if (!fits(fixed, slot)) continue;
           ids = ids.filter((id) => !clashes(sessionSlot(getSession(id)!), slot));
           ids.push(s.id);
           anchors.push(s.id);
