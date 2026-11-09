@@ -9,3 +9,4 @@ dist/
 
 # Moves to apps/maps in a later PR; untracked until then.
 /maps/
+*kubeconfig*

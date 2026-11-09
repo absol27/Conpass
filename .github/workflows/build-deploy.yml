@@ -1,0 +1,134 @@
+# On every push to main: build the image of each app that changed, push it to
+# GHCR, and point deploy/kustomization.yaml at it in one bot commit. Argo CD
+# sees that commit and deploys it. An app is anything in apps/ with a Dockerfile;
+# its image is ghcr.io/<owner>/<repo>/<app>.
+name: build-and-deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/**"
+      - "packages/**"
+      - ".github/workflows/build-deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: build-and-deploy
+  cancel-in-progress: false
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      apps: ${{ steps.find.outputs.apps }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Which apps changed
+        id: find
+        env:
+          BEFORE: ${{ github.event.before }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          all=""
+          for d in apps/*/; do
+            if [ -f "${d}Dockerfile" ]; then all="$all $(basename "$d")"; fi
+          done
+          # Build everything on a manual run, when there's no previous commit to
+          # diff against, or when shared code or this workflow changed.
+          if [ "$EVENT" = workflow_dispatch ] || ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            changed="$all"
+          else
+            files="$(git diff --name-only "$BEFORE" HEAD)"
+            if printf '%s\n' "$files" | grep -qE '^(packages/|\.github/workflows/build-deploy\.yml)'; then
+              changed="$all"
+            else
+              changed=""
+              for a in $all; do
+                if printf '%s\n' "$files" | grep -q "^apps/$a/"; then changed="$changed $a"; fi
+              done
+            fi
+          fi
+          echo "Apps to build:${changed:- none}"
+          echo "apps=$(printf '%s\n' $changed | jq -Rsc 'split("\n") | map(select(length > 0))')" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: changes
+    if: needs.changes.outputs.apps != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: ${{ fromJSON(needs.changes.outputs.apps) }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Image name and tag
+        id: meta
+        env:
+          APP: ${{ matrix.app }}
+        run: |
+          echo "image=ghcr.io/${GITHUB_REPOSITORY,,}/${APP}" >> "$GITHUB_OUTPUT"
+          echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      # The build context is the repo root so apps can later use packages/.
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/${{ matrix.app }}/Dockerfile
+          push: true
+          build-args: APP_VERSION=${{ steps.meta.outputs.tag }}
+          tags: |
+            ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}
+            ${{ steps.meta.outputs.image }}:latest
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+
+  deploy:
+    needs: [changes, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Point the manifests at the new images
+        env:
+          APPS: ${{ needs.changes.outputs.apps }}
+          TAG: ${{ github.sha }}
+        run: |
+          TAG="${TAG::7}"
+          REGISTRY="ghcr.io/${GITHUB_REPOSITORY,,}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Set the images on top of the latest main, not on the commit this run
+          # built, so a push that landed during the build can't conflict; retry
+          # if one lands mid-push. One commit for all apps avoids racing pushes.
+          for attempt in 1 2 3 4 5; do
+            git fetch -q origin main
+            git reset -q --hard FETCH_HEAD
+            for app in $(printf '%s' "$APPS" | jq -r '.[]'); do
+              APP="$app" IMAGE="$REGISTRY/$app" yq -i \
+                '(.images[] | select(.name == strenv(APP))) |= (.newName = strenv(IMAGE) | .newTag = strenv(TAG))' \
+                deploy/kustomization.yaml
+            done
+            if git diff --quiet; then exit 0; fi
+            git commit -qam "deploy: $(printf '%s' "$APPS" | jq -r 'join(", ")') ${TAG} [skip ci]"
+            if git push -q origin HEAD:main; then exit 0; fi
+            sleep $((attempt * 3))
+          done
+          echo "Couldn't push the deploy commit after 5 tries." >&2
+          exit 1
