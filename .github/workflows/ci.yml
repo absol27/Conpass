@@ -1,0 +1,60 @@
+# Repo-wide checks on every PR, whatever it touches.
+name: ci
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Renders deploy/ the way Argo CD will and validates the result.
+  manifests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Render deploy/
+        run: kubectl kustomize deploy > rendered.yaml
+
+      - name: Validate against Kubernetes schemas
+        run: |
+          curl -fsSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar xz kubeconform
+          ./kubeconform -strict -summary \
+            -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            rendered.yaml
+
+      # The platform routes https://conpass.cnh.radarhq.io to Service app:80
+      # and nothing else, so losing it takes the site down.
+      - name: Service app still serves port 80
+        run: |
+          ports="$(yq 'select(.kind == "Service" and .metadata.name == "app") | .spec.ports[].port' rendered.yaml)"
+          if ! printf '%s\n' "$ports" | grep -qx 80; then
+            echo "::error file=deploy/service.yaml::Service 'app' with port 80 is missing; the public URL routes only to it."
+            exit 1
+          fi
+
+  workflows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: actionlint
+        run: |
+          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.7/scripts/download-actionlint.bash) 1.7.7
+          ./actionlint -color
+
+  # The repo and images are public: fail the PR if it adds a credential.
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

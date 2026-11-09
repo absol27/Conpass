@@ -5,12 +5,15 @@ COPY apps/web/package.json apps/web/package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY apps/web/ .
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
+# public/ may not exist yet; create it so the COPY below always works.
+RUN mkdir -p public && npm run build
 
 FROM node:22-alpine
 WORKDIR /app
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
+# Standalone output doesn't include public/ (static images like /tag/*.svg).
+COPY --from=build /app/public ./public
 # Read at runtime by /api/import-ics (demo calendar).
 COPY --from=build /app/data ./data
 ARG APP_VERSION=dev
