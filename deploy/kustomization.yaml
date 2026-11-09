@@ -15,9 +15,11 @@ resources:
   - httproute.yaml
 images:
   - name: gateway
+    newName: ghcr.io/absol27/conpass/gateway
+    newTag: 75f4b2f
   - name: web
     newName: ghcr.io/absol27/conpass/web
-    newTag: 030c304
+    newTag: 75f4b2f
   - name: maps
     newName: ghcr.io/absol27/conpass/maps
-    newTag: latest
+    newTag: 75f4b2f
