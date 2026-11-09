@@ -63,6 +63,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.apps != '[]'
     runs-on: ubuntu-latest
+    environment: ghcr
     strategy:
       matrix:
         app: ${{ fromJSON(needs.changes.outputs.apps) }}
