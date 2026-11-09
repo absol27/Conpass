@@ -20,6 +20,42 @@ spec:
           ports:
             - name: http
               containerPort: 8080
+          env:
+            # Telemetry to Dash0 (OpenTelemetry). Secret `dash0` is created by hand; optional so the app starts without it.
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: DASH0_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: dash0
+                  key: auth-token
+                  optional: true
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: dash0
+                  key: endpoint
+                  optional: true
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: http/protobuf
+            - name: OTEL_EXPORTER_OTLP_HEADERS
+              value: "Authorization=Bearer $(DASH0_AUTH_TOKEN),Dash0-Dataset=default"
+            - name: OTEL_SERVICE_NAME
+              value: maps
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "service.namespace=conpass,k8s.namespace.name=team-conpass,k8s.deployment.name=maps,k8s.pod.name=$(POD_NAME)"
+            - name: NODE_OPTIONS
+              value: "--import @opentelemetry/auto-instrumentations-node/register"
+            - name: OTEL_NODE_ENABLED_INSTRUMENTATIONS
+              value: http
+            - name: OTEL_TRACES_EXPORTER
+              value: otlp
+            - name: OTEL_METRICS_EXPORTER
+              value: otlp
+            - name: OTEL_LOGS_EXPORTER
+              value: none
           resources:
             requests:
               cpu: 50m

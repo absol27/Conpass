@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Nav } from "@/components/Nav";
 import { SyncProvider } from "@/components/SyncProvider";
+import { Rum } from "@/components/Rum";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen antialiased">
         <Nav />
         <SyncProvider />
+        <Rum />
         <main className="mx-auto max-w-6xl px-4 pb-24 pt-6">{children}</main>
       </body>
     </html>
