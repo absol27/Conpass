@@ -24,7 +24,7 @@ Skip this if `get_resource` (kind `Application`, group `argoproj.io`, name `app`
 
 Ask the person before you commit and push. Commit on a branch, push the branch, and open a PR with `gh pr create --label gitar-managed`. Never push to `main`. Wait for the person to merge it after Gitar's review. Then `git fetch origin` and note the merge commit on `origin/main` (`git rev-parse origin/main`) and its seven-character image tag (`git rev-parse --short=7 origin/main`).
 
-The Action skips pushes changing only Markdown and/or `deploy/kustomization.yaml`. Markdown-only changes need no deployment. For an intentional kustomization-only change, skip step 2, retain the existing image tag as the expected app version, and verify the configuration change after sync. Every other push, including other files under `deploy/`, triggers a build.
+The Action builds only when a push changes `apps/**`, `packages/**` or `.github/workflows/build-deploy.yml`. Markdown-only changes need no deployment. For a change only under `deploy/` (or other non-app files), skip step 2, retain the existing image tag as the expected app version, and verify the configuration change after sync.
 
 ## 2. Wait for the build, then pull its deploy commit
 
