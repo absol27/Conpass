@@ -7,6 +7,7 @@ import { planIds, useStore } from "@/lib/store";
 import { api, useHydrated } from "@/lib/client";
 import { dayEnd, dayLabel, dayStart, MIN, ms } from "@/lib/time";
 import { travelMinutes } from "@/lib/venue";
+import { useWalkMatrix } from "@/lib/useWalkMatrix";
 import { blockSlot, freeWindows, sessionSlot, type Window } from "@/lib/scheduler/feasibility";
 import type { Suggestions } from "@/lib/scheduler/recommend";
 import { leftoverGaps, placeWithSwap, repeatThatFits } from "@/lib/scheduler/backtrack";
@@ -50,6 +51,7 @@ const firstSessionStart = (day: number) => Math.min(...sessions.filter((s) => s.
 
 /** Screen 3: build one day, one pick at a time. */
 export default function PlanDay() {
+  useWalkMatrix();
   const hydrated = useHydrated();
   const day = Number(useParams<{ day: string }>().day) || 1;
   const router = useRouter();

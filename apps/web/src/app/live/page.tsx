@@ -1,21 +1,27 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { conference, getSession, roomById } from "@/lib/data";
 import { useStore } from "@/lib/store";
 import { api, useHydrated, useNow } from "@/lib/client";
 import { at, dayOf, fmtDayTime, fmtTime, MIN, minutesBetween, ms } from "@/lib/time";
 import { directions, ENTRANCE } from "@/lib/venue";
+import { useWalkMatrix } from "@/lib/useWalkMatrix";
+import { loadSettings } from "@/components/hallway/settings";
+import { DEFAULT_SETTINGS } from "@/components/hallway/types";
 import type { GapSuggestion } from "@/lib/scheduler/gapfill";
 import type { Session } from "@/lib/types";
 import { Button, Card, SessionMeta, topicColor } from "@/components/ui";
-import { VenueMap } from "@/components/VenueMap";
+import { HallwayRoute } from "@/components/hallway/HallwayRoute";
 import { Tag } from "@/components/Tag";
 
 type GapResult = { window: { start: number; end: number }; suggestions: GapSuggestion[]; source: string };
 
 /** Day-of mode: where you should be, how to get there, and re-planning when things go wrong. */
 export default function Live() {
+  const [routeSettings, setRouteSettings] = useState(DEFAULT_SETTINGS);
+  useEffect(() => setRouteSettings(loadSettings()), []);
+  useWalkMatrix(routeSettings);
   const hydrated = useHydrated();
   const now = useNow();
   const plans = useStore((s) => s.plans);
@@ -33,7 +39,8 @@ export default function Live() {
   const before = [...items].reverse().find((s) => ms(s.end) <= now);
   const hereRoom = current?.roomId ?? before?.roomId ?? ENTRANCE;
   const target = current && now < ms(current.start) + 10 * MIN ? current : next;
-  const route = target ? directions(current && target === current ? before?.roomId ?? ENTRANCE : hereRoom, target.roomId) : null;
+  const fromRoom = current && target === current ? before?.roomId ?? ENTRANCE : hereRoom;
+  const route = target ? directions(fromRoom, target.roomId) : null;
   const leaveBy = target && route ? ms(target.start) - route.minutes * MIN : null;
   const blockNow = blocks.find((b) => b.day === day && ms(b.start) <= now && now < ms(b.end));
 
@@ -158,23 +165,9 @@ export default function Live() {
                   <Tag pose="point" size={44} />
                   Directions to {roomById.get(target.roomId)?.name}
                 </div>
-                <VenueMap route={route.zones} here={route.zones[0]} there={route.zones.at(-1)} />
-                <ol className="mt-3 list-inside list-decimal space-y-1 text-sm">
-                  {route.steps.map((s) => <li key={s}>{s}</li>)}
-                </ol>
+                <HallwayRoute from={fromRoom} to={target.roomId} />
               </Card>
             )}
-            <Card>
-              <div className="mb-2 text-sm font-semibold">Today</div>
-              <ul className="space-y-1 text-sm">
-                {items.map((s) => (
-                  <li key={s.id} className={`flex gap-2 ${ms(s.end) < now ? "text-gray-400 line-through" : ""} ${s === current ? "font-semibold" : ""}`}>
-                    <span className="w-12 shrink-0 tabular-nums">{fmtTime(s.start)}</span>
-                    <span className="truncate">{s.title}</span>
-                  </li>
-                ))}
-              </ul>
-            </Card>
           </div>
         </div>
       )}

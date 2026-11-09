@@ -172,3 +172,18 @@ describe("social (real data)", () => {
     expect(l[0]?.topic).toBe("security");
   });
 });
+
+describe("travelMinutes with the maps service's walk matrix", () => {
+  it("uses real walk seconds plus the buffer, and falls back to estimates without them", async () => {
+    const { setWalkMatrix } = await import("@/lib/venue");
+    const a = "sp-level-2-250-a-c";
+    const b = "sp-level-2-255-a";
+    const estimate = travelMinutes(a, b);
+    setWalkMatrix({ seconds: { [a]: { [b]: 144 } } });
+    expect(travelMinutes(a, b)).toBe(3 + 2);
+    // Pairs the matrix doesn't cover keep using the estimates.
+    expect(travelMinutes(b, a)).toBe(estimate);
+    setWalkMatrix(null);
+    expect(travelMinutes(a, b)).toBe(estimate);
+  });
+});

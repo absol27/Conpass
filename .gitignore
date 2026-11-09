@@ -7,6 +7,4 @@ dist/
 !.env.*.example
 .DS_Store
 
-# Moves to apps/maps in a later PR; untracked until then.
-/maps/
 *kubeconfig*

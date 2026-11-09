@@ -1,5 +1,5 @@
 # The platform routes https://conpass.cnh.radarhq.io to Service `app`, port 80.
-# Keep this name and port; change only the selector when the entrypoint moves.
+# Keep this name and port; it points at the gateway, which fans out by path.
 apiVersion: v1
 kind: Service
 metadata:
@@ -8,8 +8,22 @@ metadata:
     app: app
 spec:
   selector:
-    app: web
+    app: gateway
   ports:
     - name: http
       port: 80
+      targetPort: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  labels:
+    app: web
+spec:
+  selector:
+    app: web
+  ports:
+    - name: http
+      port: 8080
       targetPort: http

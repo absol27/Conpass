@@ -4,6 +4,7 @@ import type { Block, Session } from "@/lib/types";
 import { roomById } from "@/lib/data";
 import { dayEnd, dayStart, fmtTime, MIN, ms } from "@/lib/time";
 import { travelMinutes } from "@/lib/venue";
+import { useWalkMatrix } from "@/lib/useWalkMatrix";
 import { topicColor } from "./ui";
 
 export const PX_PER_MIN = 1.6;
@@ -36,6 +37,7 @@ type Props = {
  * page can scroll there.
  */
 export const DayTimeline = forwardRef<HTMLDivElement, Props>(function DayTimeline(p, focusRef) {
+  useWalkMatrix();
   const t0 = dayStart(p.day);
   const t1 = dayEnd(p.day);
   const y = (t: number) => ((t - t0) / MIN) * PX_PER_MIN;

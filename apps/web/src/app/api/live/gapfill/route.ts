@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { loadWalkMatrix } from "@/lib/server/walk";
 import { es, INDEX } from "@/lib/es";
 import { getSession, sessions, withSeries } from "@/lib/data";
 import { dayEnd, ms } from "@/lib/time";
@@ -18,6 +19,7 @@ type Body = {
 /** Fill the gap after a missed or full session: joinable talks + open activities, ranked by interest and distance. */
 export async function POST(req: Request) {
   const body = (await req.json()) as Body;
+  await loadWalkMatrix();
   body.excludeIds = withSeries(body.excludeIds);
   const next = body.nextId ? getSession(body.nextId) : undefined;
   const window = gapWindow(body.now, next ? { start: ms(next.start), roomId: next.roomId } : undefined, body.currentRoom, dayEnd(body.day));

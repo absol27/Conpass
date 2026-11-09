@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { loadWalkMatrix } from "@/lib/server/walk";
 import { es, INDEX } from "@/lib/es";
 import { getSession, sessions, withSeries } from "@/lib/data";
 import { ms } from "@/lib/time";
@@ -24,6 +25,7 @@ type Body = {
 
 export async function POST(req: Request) {
   const body = (await req.json()) as Body;
+  await loadWalkMatrix();
   const slots = [...body.plan.map((id) => sessionSlot(getSession(id)!)), ...body.blocks.filter((b) => b.day === body.day).map(blockSlot)];
   const prev = slotBefore(slots, body.window.start + 60_000);
   const prevSession = prev?.kind === "session" ? getSession(prev.id) : undefined;

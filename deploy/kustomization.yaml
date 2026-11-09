@@ -8,10 +8,16 @@ labels:
   - pairs:
       app.kubernetes.io/part-of: conpass
 resources:
+  - gateway.yaml
   - web.yaml
+  - maps.yaml
   - service.yaml
   - httproute.yaml
 images:
+  - name: gateway
   - name: web
     newName: ghcr.io/absol27/conpass/web
     newTag: 030c304
+  - name: maps
+    newName: ghcr.io/absol27/conpass/maps
+    newTag: latest

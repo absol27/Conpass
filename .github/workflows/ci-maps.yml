@@ -1,0 +1,59 @@
+# Checks for apps/maps on every PR that touches it. Each job is its own status
+# check on the PR, so a failure points at one thing (and Gitar can diagnose it).
+name: ci-maps
+
+on:
+  pull_request:
+    paths:
+      - "apps/maps/**"
+      - ".github/workflows/ci-maps.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-maps-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: apps/maps
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/maps/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run lint
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/maps/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+
+  # Builds the same image build-and-deploy will build after merge, without pushing it.
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/maps/Dockerfile
+          push: false
+          cache-from: type=gha,scope=maps
