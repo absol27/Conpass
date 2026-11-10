@@ -1,0 +1,30 @@
+# Keep at least one pod of each service up during node drains and upgrades.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: gateway
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: gateway
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: web
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: web
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: maps
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: maps
