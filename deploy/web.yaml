@@ -16,6 +16,8 @@ spec:
       labels:
         app: web
     spec:
+      # Our apps never call the Kubernetes API, so don't mount a token.
+      automountServiceAccountToken: false
       containers:
         - name: web
           image: web

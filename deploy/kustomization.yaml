@@ -12,6 +12,7 @@ resources:
   - web.yaml
   - maps.yaml
   - service.yaml
+  - pdb.yaml
   - httproute.yaml
 images:
   - name: gateway

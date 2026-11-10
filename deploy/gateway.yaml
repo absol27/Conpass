@@ -40,6 +40,8 @@ spec:
       labels:
         app: gateway
     spec:
+      # Our apps never call the Kubernetes API, so don't mount a token.
+      automountServiceAccountToken: false
       containers:
         - name: nginx
           # Runs as user 101 and listens on 8080.
